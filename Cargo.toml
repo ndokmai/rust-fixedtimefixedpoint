@@ -10,6 +10,9 @@ edition = "2018"
 name = "example"
 path = "example/main.rs"
 
+[features]
+sgx = []
+
 [dependencies]
 libc = "0.2"
 
