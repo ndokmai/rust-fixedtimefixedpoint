@@ -1,20 +1,19 @@
 mod binding;
 
-use std::ops::*;
-use std::cmp::Ordering;
+include!(concat!(env!("OUT_DIR"), "/bits.rs"));
 use binding::*;
+use std::cmp::Ordering;
+use std::ops::*;
 
-pub use binding::FIX_FLAG_BITS as FLAG_BITS;
-pub use binding::FIX_FRAC_BITS as FLAC_BITS;
-pub use binding::FIX_INT_BITS as INT_BITS;
-pub const EPSILON: Fixed =  Fixed(1u64 << FLAG_BITS);
-pub const EPSILON_NEG: Fixed =  Fixed(!((1u64 << FLAG_BITS)-1));
-pub const ZERO: Fixed =  Fixed(0);
-pub const MAX: Fixed =  Fixed((((1 as fixed) << (FIX_BITS-1)) - 1) & FIX_DATA_BIT_MASK);
-pub const MIN: Fixed =  Fixed(((1 as fixed) << (FIX_BITS-1)) & FIX_DATA_BIT_MASK);
+use FIX_FLAG_BITS as FLAG_BITS;
+pub const EPSILON: Fixed = Fixed(1u64 << FLAG_BITS);
+pub const EPSILON_NEG: Fixed = Fixed(!((1u64 << FLAG_BITS) - 1));
+pub const ZERO: Fixed = Fixed(0);
+pub const MAX: Fixed = Fixed((((1 as fixed) << (FIX_BITS - 1)) - 1) & FIX_DATA_BIT_MASK);
+pub const MIN: Fixed = Fixed(((1 as fixed) << (FIX_BITS - 1)) & FIX_DATA_BIT_MASK);
 
-const FIX_BITS: usize = 8*std::mem::size_of::<fixed>();
-const FIX_DATA_BIT_MASK: fixed= 0xFFFFFFFFFFFFFFFC;
+const FIX_BITS: usize = 8 * std::mem::size_of::<fixed>();
+const FIX_DATA_BIT_MASK: fixed = 0xFFFFFFFFFFFFFFFC;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Fixed(fixed);
@@ -131,12 +130,13 @@ impl Into<i64> for Fixed {
 }
 
 impl Default for Fixed {
-    fn default() -> Self { ZERO }
-} 
-
+    fn default() -> Self {
+        ZERO
+    }
+}
 
 impl PartialEq for Fixed {
-    fn eq(&self, other: &Self) -> bool { 
+    fn eq(&self, other: &Self) -> bool {
         unsafe { fix_eq(self.0, other.0) != 0 }
     }
 
@@ -146,7 +146,7 @@ impl PartialEq for Fixed {
 }
 
 impl PartialOrd for Fixed {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { 
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match unsafe { fix_cmp(self.0, other.0) } {
             -1 => Some(Ordering::Less),
             0 => Some(Ordering::Equal),
@@ -156,8 +156,8 @@ impl PartialOrd for Fixed {
                 } else {
                     Some(Ordering::Greater)
                 }
-            },
-            _ => panic!("This should never happen")
+            }
+            _ => panic!("This should never happen"),
         }
     }
 
@@ -212,4 +212,3 @@ impl Neg for Fixed {
         Self(unsafe { fix_neg(self.0) })
     }
 }
-

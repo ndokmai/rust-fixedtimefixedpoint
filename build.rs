@@ -1,63 +1,61 @@
-use std::process::Command;
-use std::path::Path;
 use std::env;
+use std::path::Path;
+use std::process::Command;
+use std::fs;
 
-const LIB: &str = "deps/libfixedtimefixedpoint";
+fn make_bits_file(b: usize, out_dir: &Path) {
+    let dest_path = out_dir.join("bits.rs");
+    fs::write(
+        &dest_path,
+        format!(
+            "pub const FIX_FLAG_BITS: u32 = 2; \
+            pub const FIX_FRAC_BITS: u32 = {}; \
+            pub const FIX_INT_BITS: u32 = {};", 60-b, b)).unwrap();
+    println!("cargo:rerun-if-changed=build.rs");
+}
 
 fn main() {
-    let curr_dir_str = env::var_os("CARGO_MANIFEST_DIR").unwrap();
-    let curr_dir = Path::new(&curr_dir_str);
-    let lib_dir = curr_dir.join(Path::new(LIB));
-    let header_file = lib_dir.join(Path::new("ftfp.h"));
+    let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
+    let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
 
-    Command::new("git").arg("submodule").arg("update").arg("--init")
-        .current_dir(&curr_dir)
-        .status()
-        .unwrap();
-    
+    let out_dir_str = env::var("OUT_DIR").unwrap();
+    let curr_dir_str = env::var("CARGO_MANIFEST_DIR").unwrap();
+
+    let out_dir = Path::new(&out_dir_str);
+    let curr_dir = Path::new(&curr_dir_str);
+    let sys_dir = curr_dir.join(Path::new("ftfp-sys"));
+    let lib_dir = out_dir.join(Path::new("lib"));
+
+    if let Ok(b) = env::var("FTFP_INTBITS") {
+        let b: usize = b.parse().expect("FTFP_INTBITS is not a valid integer.");
+        if b > 60 {
+            panic!("FTFP_INTBITS must be <= 60.")
+        }
+        make_bits_file(b, out_dir);
+    } else {
+        make_bits_file(32, out_dir);
+    }
+
     println!("cargo:rustc-link-search={}", lib_dir.to_str().unwrap());
 
-    let bindings = if cfg!(feature = "sgx") {
+    if target_env == "sgx" && target_vendor == "fortanix" {
         println!("cargo:rustc-link-lib=static={}", "ftfp_sgx");
         Command::new("make")
-            .args(&["-C", lib_dir.to_str().unwrap()])
+            .current_dir(sys_dir.clone())
+            .arg(format!("BUILD_DIR={}", out_dir.to_str().unwrap()))
             .arg("SGX=1")
             .status()
             .unwrap();
-        bindgen::Builder::default()
-            .header(header_file.to_str().unwrap())
-            .clang_arg("-DSGX")
-            .whitelist_function("fix_.*")
-            .whitelist_var("FIX_.*")
-            .blacklist_item("FIX_INTERN.*")
-            .blacklist_item("FIX_PRINT.*")
-            .rustfmt_bindings(true)
-            .raw_line("#![allow(non_camel_case_types)]")
-            .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-            .generate()
-            .expect("Unable to generate bindings")
     } else {
         println!("cargo:rustc-link-lib=dylib={}", "ftfp");
-        println!("cargo:rustc-env=LD_LIBRARY_PATH={}", lib_dir.to_str().unwrap());
+        println!(
+            "cargo:rustc-env=LD_LIBRARY_PATH={}",
+            lib_dir.to_str().unwrap()
+        );
         Command::new("make")
-            .args(&["-C", lib_dir.to_str().unwrap()])
+            .current_dir(sys_dir.clone())
+            .arg(format!("BUILD_DIR={}", out_dir.to_str().unwrap()))
             .status()
             .unwrap();
-        bindgen::Builder::default()
-            .header(header_file.to_str().unwrap())
-            .whitelist_function("fix_.*")
-            .whitelist_var("FIX_.*")
-            .blacklist_item("fix_.*print.*")
-            .blacklist_item("FIX_INTERN.*")
-            .blacklist_item("FIX_PRINT.*")
-            .rustfmt_bindings(true)
-            .raw_line("#![allow(non_camel_case_types)]")
-            .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-            .generate()
-            .expect("Unable to generate bindings")
     };
-
-    bindings
-        .write_to_file("src/binding.rs")
-        .expect("Couldn't write bindings!");
 }

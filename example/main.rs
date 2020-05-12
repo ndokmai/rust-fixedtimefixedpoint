@@ -6,4 +6,5 @@ fn main() {
     let out = a - b;
     let out: f64 = out.into();
     println!("out {}", out);
+    println!("bits {}", FIX_INT_BITS);
 }
