@@ -67,7 +67,7 @@ target: $(target)
 
 $(TARGET_DIR): $(SRC_DIR)
 	mkdir -p $(TARGET_DIR)
-	cp -ans $(realpath $(SRC_DIR))/* $(TARGET_DIR)
+	cp $(realpath $(SRC_DIR))/* $(TARGET_DIR)
 	(cd $(TARGET_DIR) && \
 	    python3 generate_base.py --file base.h --pyfile base.py --intbits $(FTFP_INTBITS))
 
