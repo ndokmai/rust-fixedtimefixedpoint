@@ -212,3 +212,10 @@ impl Neg for Fixed {
         Self(unsafe { fix_neg(self.0) })
     }
 }
+
+impl std::fmt::Display for Fixed {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let i: f64 = (*self).into();
+        write!(f, "{}", i)
+    }
+}
