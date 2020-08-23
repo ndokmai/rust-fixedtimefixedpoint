@@ -1,7 +1,7 @@
 use std::env;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
-use std::fs;
 
 fn make_bits_file(b: usize, out_dir: &Path) {
     let dest_path = out_dir.join("bits.rs");
@@ -10,7 +10,12 @@ fn make_bits_file(b: usize, out_dir: &Path) {
         format!(
             "pub const FIX_FLAG_BITS: u32 = 2; \
             pub const FIX_FRAC_BITS: u32 = {}; \
-            pub const FIX_INT_BITS: u32 = {};", 60-b, b)).unwrap();
+            pub const FIX_INT_BITS: u32 = {};",
+            60 - b,
+            b
+        ),
+    )
+    .unwrap();
     println!("cargo:rerun-if-changed=build.rs");
 }
 

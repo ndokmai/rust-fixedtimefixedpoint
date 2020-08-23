@@ -2,7 +2,10 @@ mod binding;
 
 include!(concat!(env!("OUT_DIR"), "/bits.rs"));
 use binding::*;
+use ndarray::{Array, ArrayBase, Data, Dimension, Zip};
+use paste::paste;
 use std::cmp::Ordering;
+use std::convert::TryInto;
 use std::ops::*;
 
 use FIX_FLAG_BITS as FLAG_BITS;
@@ -19,6 +22,7 @@ const FIX_DATA_BIT_MASK: fixed = 0xFFFFFFFFFFFFFFFC;
 pub struct Fixed(fixed);
 
 impl Fixed {
+    pub const EPSILON: Fixed = Fixed(1u64 << FLAG_BITS);
     /// Returns true if the numbers are equal (and also if they are both NaN)
     pub fn eq_nan(self, other: Self) -> bool {
         unsafe { fix_eq_nan(self.0, other.0) != 0 }
@@ -103,6 +107,14 @@ impl Fixed {
     pub fn is_sign_negative(self) -> bool {
         unsafe { fix_is_neg(self.0) != 0 }
     }
+
+    pub fn max(self, other: Self) -> Self {
+        if self > other {
+            self
+        } else {
+            other
+        }
+    }
 }
 
 impl From<f64> for Fixed {
@@ -114,6 +126,19 @@ impl From<f64> for Fixed {
 impl From<i64> for Fixed {
     fn from(d: i64) -> Self {
         Self(unsafe { fix_convert_from_int64(d) })
+    }
+}
+
+impl From<usize> for Fixed {
+    fn from(d: usize) -> Self {
+        //TODO: fix this
+        Self(unsafe { fix_convert_from_int64(d.try_into().unwrap()) })
+    }
+}
+
+impl From<u32> for Fixed {
+    fn from(d: u32) -> Self {
+        Self(unsafe { fix_convert_from_int64(d.into()) })
     }
 }
 
@@ -178,33 +203,46 @@ impl PartialOrd for Fixed {
     }
 }
 
-impl Add for Fixed {
-    type Output = Self;
-    fn add(self, other: Self) -> Self {
-        Self(unsafe { fix_add(self.0, other.0) })
-    }
+macro_rules! num_op {
+    ($op: tt, $trt: path, $op_name: expr) => {
+        paste! {
+            impl $trt for Fixed {
+                type Output = Self;
+                fn $op_name(self, other: Self) -> Self {
+                    Self(unsafe { [<fix_ $op_name>](self.0, other.0) })
+
+                }
+
+            }
+
+            impl [<$trt Assign>] for Fixed {
+                fn [<$op_name _assign>](&mut self, other: Self) {
+                    *self = *self $op other;
+                }
+            }
+
+            impl<'a, S, D> $trt<&'a ArrayBase<S, D>> for Fixed
+                where
+                    S: Data<Elem = Fixed>,
+                    D: Dimension,
+                    {
+                        type Output = Array<Fixed, D>;
+                        fn $op_name(self, rhs: &ArrayBase<S, D>) -> Self::Output {
+                            let mut out = Self::Output::zeros(rhs.dim());
+                            Zip::from(&mut out)
+                                .and(rhs)
+                                .apply(|o, &r| { *o = self $op r });
+                            out
+                        }
+                    }
+        }
+    };
 }
 
-impl Sub for Fixed {
-    type Output = Self;
-    fn sub(self, other: Self) -> Self {
-        Self(unsafe { fix_sub(self.0, other.0) })
-    }
-}
-
-impl Mul for Fixed {
-    type Output = Self;
-    fn mul(self, other: Self) -> Self {
-        Self(unsafe { fix_mul(self.0, other.0) })
-    }
-}
-
-impl Div for Fixed {
-    type Output = Self;
-    fn div(self, other: Self) -> Self {
-        Self(unsafe { fix_div(self.0, other.0) })
-    }
-}
+num_op!(+, Add, add);
+num_op!(-, Sub, sub);
+num_op!(*, Mul, mul);
+num_op!(/, Div, div);
 
 impl Neg for Fixed {
     type Output = Self;
@@ -213,9 +251,65 @@ impl Neg for Fixed {
     }
 }
 
+impl std::str::FromStr for Fixed {
+    type Err = std::num::ParseFloatError;
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        Ok(src.parse::<f64>()?.into())
+    }
+}
+
 impl std::fmt::Display for Fixed {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let i: f64 = (*self).into();
         i.fmt(f)
+    }
+}
+
+impl num_traits::identities::Zero for Fixed {
+    fn zero() -> Self {
+        ZERO
+    }
+    fn is_zero(&self) -> bool {
+        *self == ZERO
+    }
+
+    fn set_zero(&mut self) {
+        *self = ZERO
+    }
+}
+
+impl num_traits::identities::One for Fixed {
+    fn one() -> Self {
+        1i64.into()
+    }
+
+    fn set_one(&mut self) {
+        *self = 1i64.into()
+    }
+    fn is_one(&self) -> bool
+    where
+        Self: PartialEq,
+    {
+        *self == 1i64.into()
+    }
+}
+
+impl ndarray::ScalarOperand for Fixed {}
+
+impl std::iter::Sum<Fixed> for Fixed {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Fixed>,
+    {
+        iter.fold(ZERO, |acc, x| acc + x)
+    }
+}
+
+impl<'a> std::iter::Sum<&'a Fixed> for Fixed {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Fixed>,
+    {
+        iter.fold(ZERO, |acc, x| acc + *x)
     }
 }
