@@ -18,7 +18,7 @@ pub const MIN: Fixed = Fixed(((1 as fixed) << (FIX_BITS - 1)) & FIX_DATA_BIT_MAS
 const FIX_BITS: usize = 8 * std::mem::size_of::<fixed>();
 const FIX_DATA_BIT_MASK: fixed = 0xFFFFFFFFFFFFFFFC;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct Fixed(fixed);
 
 impl Fixed {
@@ -259,6 +259,13 @@ impl std::str::FromStr for Fixed {
 }
 
 impl std::fmt::Display for Fixed {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let i: f64 = (*self).into();
+        i.fmt(f)
+    }
+}
+
+impl std::fmt::Debug for Fixed {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let i: f64 = (*self).into();
         i.fmt(f)
