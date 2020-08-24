@@ -9,12 +9,6 @@ use std::convert::TryInto;
 use std::ops::*;
 
 use FIX_FLAG_BITS as FLAG_BITS;
-pub const EPSILON: Fixed = Fixed(1u64 << FLAG_BITS);
-pub const EPSILON_NEG: Fixed = Fixed(!((1u64 << FLAG_BITS) - 1));
-pub const ZERO: Fixed = Fixed(0);
-pub const MAX: Fixed = Fixed((((1 as fixed) << (FIX_BITS - 1)) - 1) & FIX_DATA_BIT_MASK);
-pub const MIN: Fixed = Fixed(((1 as fixed) << (FIX_BITS - 1)) & FIX_DATA_BIT_MASK);
-
 const FIX_BITS: usize = 8 * std::mem::size_of::<fixed>();
 const FIX_DATA_BIT_MASK: fixed = 0xFFFFFFFFFFFFFFFC;
 
@@ -23,6 +17,11 @@ pub struct Fixed(fixed);
 
 impl Fixed {
     pub const EPSILON: Fixed = Fixed(1u64 << FLAG_BITS);
+    pub const EPSILON_NEG: Fixed = Fixed(!((1u64 << FLAG_BITS) - 1));
+    pub const ZERO: Fixed = Fixed(0);
+    pub const MAX: Fixed = Fixed((((1 as fixed) << (FIX_BITS - 1)) - 1) & FIX_DATA_BIT_MASK);
+    pub const MIN: Fixed = Fixed(((1 as fixed) << (FIX_BITS - 1)) & FIX_DATA_BIT_MASK);
+
     /// Returns true if the numbers are equal (and also if they are both NaN)
     pub fn eq_nan(self, other: Self) -> bool {
         unsafe { fix_eq_nan(self.0, other.0) != 0 }
@@ -156,7 +155,7 @@ impl Into<i64> for Fixed {
 
 impl Default for Fixed {
     fn default() -> Self {
-        ZERO
+        Self::ZERO
     }
 }
 
@@ -274,14 +273,14 @@ impl std::fmt::Debug for Fixed {
 
 impl num_traits::identities::Zero for Fixed {
     fn zero() -> Self {
-        ZERO
+        Self::ZERO
     }
     fn is_zero(&self) -> bool {
-        *self == ZERO
+        *self == Self::ZERO
     }
 
     fn set_zero(&mut self) {
-        *self = ZERO
+        *self = Self::ZERO
     }
 }
 
@@ -308,7 +307,7 @@ impl std::iter::Sum<Fixed> for Fixed {
     where
         I: Iterator<Item = Fixed>,
     {
-        iter.fold(ZERO, |acc, x| acc + x)
+        iter.fold(Self::ZERO, |acc, x| acc + x)
     }
 }
 
@@ -317,6 +316,6 @@ impl<'a> std::iter::Sum<&'a Fixed> for Fixed {
     where
         I: Iterator<Item = &'a Fixed>,
     {
-        iter.fold(ZERO, |acc, x| acc + *x)
+        iter.fold(Self::ZERO, |acc, x| acc + *x)
     }
 }

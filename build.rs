@@ -16,10 +16,12 @@ fn make_bits_file(b: usize, out_dir: &Path) {
         ),
     )
     .unwrap();
-    println!("cargo:rerun-if-changed=build.rs");
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=FTFP_INTBITS");
+
     let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
 
