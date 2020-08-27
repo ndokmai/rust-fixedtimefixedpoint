@@ -44,6 +44,10 @@ fn main() {
     }
 
     println!("cargo:rustc-link-search={}", lib_dir.to_str().unwrap());
+    Command::new("make")
+        .arg("clean")
+        .status()
+        .unwrap();
 
     if target_env == "sgx" && target_vendor == "fortanix" {
         println!("cargo:rustc-link-lib=static={}", "ftfp_sgx");
